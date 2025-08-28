@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AtCoder Submissions Counter</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a32;
+      --accent: #6ea8fe;
+      --text: #e8eefc;
+      --muted: #9fb0d0;
+      --ok: #58d68d;
+      --warn: #f7c948;
+      --err: #ff6b6b;
+    }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: radial-gradient(1200px 700px at 20% 0%, #101937 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 900px; margin: 40px auto; padding: 0 16px; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      padding: 22px; backdrop-filter: blur(8px);
+    }
+    h1 { font-size: 28px; margin: 0 0 12px; }
+    p.lead { color: var(--muted); margin: 0 0 20px; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+    .in { background: #0f1730; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 14px 16px; color: var(--text); font-size: 16px; outline: none; }
+    .btn { cursor: pointer; border: none; border-radius: 12px; padding: 14px 18px; font-size: 16px; font-weight: 600; color: #081126; background: var(--accent); transition: transform .08s ease, filter .15s ease; }
+    .btn:active { transform: translateY(1px); }
+    .btn.s { background: #2f3b66; color: var(--text); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 12px; margin-top: 16px; }
+    .stat { background: #0f1730; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 16px; }
+    .stat .l { color: var(--muted); font-size: 13px; }
+    .stat .v { font-size: 28px; font-weight: 800; margin-top: 4px; }
+    .prog { height: 8px; background: #0f1730; border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+    .bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #9ad0ff); transition: width .25s ease; }
+    .mono { font-family: monospace; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .foot { margin-top: 18px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    details { background: #0f1730; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 14px; }
+    summary { cursor: pointer; color: var(--muted); }
+    .hide { display: none; }
+    a { color: var(--accent); text-decoration: none; }
+    .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>AtCoder Submissions Counter</h1>
+      <p class="lead">Enter your username to see your submissions, AC count and solved problems.</p>
+      <div class="row">
+        <input id="u" class="in" placeholder="e.g. tourist" spellcheck="false" />
+        <button id="go" class="btn">Check</button>
+      </div>
+      <div id="progWrap" class="hide" style="margin-top:14px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span class="muted">Loading… <span id="cnt"></span></span>
+          <span id="batch" class="pill">start</span>
+        </div>
+        <div class="prog"><div id="b" class="bar"></div></div>
+      </div>
+      <div class="grid" style="margin-top:16px;">
+        <div class="stat"><div class="l">Total submissions</div><div id="t" class="v">—</div></div>
+        <div class="stat"><div class="l">Accepted (AC)</div><div id="a" class="v">—</div></div>
+        <div class="stat"><div class="l">Problems solved</div><div id="s" class="v">—</div></div>
+      </div>
+      <div class="foot">
+        <div class="muted"><span class="mono">atcoder-api/v3/user/submissions</span></div>
+        <div style="display:flex; gap:8px;">
+          <button id="ex" class="btn s" disabled>Export JSON</button>
+          <a id="apiL" class="btn s" target="_blank">API</a>
+        </div>
+      </div>
+      <p id="err" class="hide" style="margin-top:14px; color: var(--err);"></p>
+    </div>
+  </div>
+  <script>
+    const u=document.getElementById('u'),go=document.getElementById('go'),t=document.getElementById('t'),a=document.getElementById('a'),s=document.getElementById('s'),err=document.getElementById('err'),b=document.getElementById('b'),pw=document.getElementById('progWrap'),cnt=document.getElementById('cnt'),batch=document.getElementById('batch'),ex=document.getElementById('ex'),apiL=document.getElementById('apiL');
+    const API='https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions';
+    u.addEventListener('keydown',e=>{if(e.key==='Enter')go.click()});
+    go.addEventListener('click',()=>{let name=u.value.trim();reset();if(!name){showErr('Enter username');return;}apiL.href=`${API}?user=${encodeURIComponent(name)}&from_second=0`;run(name)});
+    ex.addEventListener('click',()=>{if(!ex.dataset.d)return;let blob=new Blob([ex.dataset.d],{type:'application/json'});let url=URL.createObjectURL(blob);let a=document.createElement('a');a.href=url;a.download=`atcoder-${u.value.trim()}.json`;document.body.appendChild(a);a.click();URL.revokeObjectURL(url);a.remove()});
+    function reset(){t.textContent=a.textContent=s.textContent='—';err.textContent='';err.classList.add('hide');b.style.width='0%';pw.classList.add('hide');cnt.textContent='';batch.textContent='start';ex.disabled=true;ex.dataset.d=''}
+    async function run(name){try{pw.classList.remove('hide');let c=0,tot=0,acc=0,set=new Set(),all=[],i=0;while(i<500){i++;batch.textContent=`batch ${i}`;let res=await fetch(`${API}?user=${encodeURIComponent(name)}&from_second=${c}`);if(!res.ok)throw new Error(res.status);let arr=await res.json();if(!arr.length)break;tot+=arr.length;for(let x of arr){if(x.result==='AC'){acc++;if(x.problem_id)set.add(x.problem_id)}}all.push(...arr);let last=arr[arr.length-1];c=typeof last.epoch_second==='number'?last.epoch_second+1:c+1;let pct=Math.min(95,10+Math.log2(i+1)*20);b.style.width=pct+'%';cnt.textContent=`${tot} loaded…`;await sleep(160)}t.textContent=tot;a.textContent=acc;s.textContent=set.size;b.style.width='100%';cnt.textContent=`${tot} total`;batch.textContent='done';ex.disabled=false;ex.dataset.d=JSON.stringify(all);if(i>=500)showErr('Limit reached');if(tot===0)showErr('No data')}catch(e){showErr(e.message)}}
+    function showErr(m){err.textContent=m;err.classList.remove('hide')}
+    function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+    u.value="alkayesrifat";
+  </script>
+</body>
+</html>
